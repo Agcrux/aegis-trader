@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { HistoryResult } from "@/lib/data/live";
 import { SYMBOL_NAMES } from "@/lib/config";
-import { LiveDot } from "@/components/ui";
+import RefreshCountdown from "./RefreshCountdown";
 
 /**
  * The main chart panel: real price history with range switching, volume bars,
@@ -33,10 +33,14 @@ export default function LiveChart({
   const [loaded, setLoaded] = useState<HistoryResult | null>(null);
   const [failedSymbol, setFailedSymbol] = useState<string | null>(null);
   const [hover, setHover] = useState<number | null>(null);
+  const [updatedAt, setUpdatedAt] = useState(0);
   const plotRef = useRef<HTMLDivElement>(null);
+
+  const refreshMs = range === "1D" ? 30000 : 120000;
 
   useEffect(() => {
     let alive = true;
+    setUpdatedAt(0);
     async function load() {
       try {
         const res = await fetch(`/api/market/history?symbol=${symbol}&range=${range}`);
@@ -45,18 +49,19 @@ export default function LiveChart({
         if (alive) {
           setLoaded(body);
           setFailedSymbol(null);
+          setUpdatedAt(Date.now());
         }
       } catch {
         if (alive) setFailedSymbol(symbol);
       }
     }
     load();
-    const id = setInterval(load, range === "1D" ? 30000 : 120000);
+    const id = setInterval(load, refreshMs);
     return () => {
       alive = false;
       clearInterval(id);
     };
-  }, [symbol, range]);
+  }, [symbol, range, refreshMs]);
 
   // Keyed off the response so a symbol switch never leaves the old line on screen.
   const data = loaded?.symbol === symbol ? loaded : null;
@@ -130,7 +135,7 @@ export default function LiveChart({
               {r}
             </button>
           ))}
-          <LiveDot />
+          <RefreshCountdown intervalMs={refreshMs} updatedAt={updatedAt} />
         </div>
       </div>
 

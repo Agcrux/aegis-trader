@@ -4,8 +4,11 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import type { LiveQuote } from "@/lib/data/live";
 import { STOCK_WATCHLIST } from "@/lib/config";
+import RefreshCountdown from "./RefreshCountdown";
 
 /** The market-movers table from the terminal design, fed by real quotes. */
+
+const REFRESH_MS = 30000;
 
 type Tab = "gainers" | "losers" | "volume";
 
@@ -20,6 +23,7 @@ function fmtVol(v: number | null): string {
 export default function MarketMovers() {
   const [quotes, setQuotes] = useState<LiveQuote[]>([]);
   const [tab, setTab] = useState<Tab>("gainers");
+  const [updatedAt, setUpdatedAt] = useState(0);
 
   useEffect(() => {
     let alive = true;
@@ -28,13 +32,16 @@ export default function MarketMovers() {
         const res = await fetch(`/api/market/live?symbols=${STOCK_WATCHLIST.join(",")}`);
         if (!res.ok) return;
         const data = (await res.json()) as { quotes: LiveQuote[] };
-        if (alive) setQuotes(data.quotes);
+        if (alive) {
+          setQuotes(data.quotes);
+          setUpdatedAt(Date.now());
+        }
       } catch {
         // keep last good data
       }
     }
     load();
-    const id = setInterval(load, 30000);
+    const id = setInterval(load, REFRESH_MS);
     return () => {
       alive = false;
       clearInterval(id);
@@ -58,7 +65,10 @@ export default function MarketMovers() {
   return (
     <section className="flex flex-col overflow-hidden rounded-sm border border-outline-variant bg-surface">
       <div className="flex items-center justify-between border-b border-outline-variant bg-surface-container-low p-3">
-        <h2 className="text-base font-semibold text-on-surface">Market Movers</h2>
+        <div className="flex items-center gap-3">
+          <h2 className="text-base font-semibold text-on-surface">Market Movers</h2>
+          <RefreshCountdown intervalMs={REFRESH_MS} updatedAt={updatedAt} />
+        </div>
         <div className="flex gap-1">
           {tabs.map((t) => (
             <button

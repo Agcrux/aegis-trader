@@ -3,6 +3,9 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { LiveQuote } from "@/lib/data/live";
+import RefreshCountdown from "./RefreshCountdown";
+
+const REFRESH_MS = 20000;
 
 /**
  * The four sparkline index cards from the terminal design, driven by real
@@ -55,6 +58,7 @@ function Spark({ points, up }: { points: number[]; up: boolean }) {
 export default function LiveTicker() {
   const [quotes, setQuotes] = useState<Record<string, LiveQuote>>({});
   const [stale, setStale] = useState(false);
+  const [updatedAt, setUpdatedAt] = useState(0);
 
   useEffect(() => {
     let alive = true;
@@ -68,12 +72,13 @@ export default function LiveTicker() {
         for (const q of data.quotes) map[q.symbol] = q;
         setQuotes(map);
         setStale(false);
+        setUpdatedAt(Date.now());
       } catch {
         if (alive) setStale(true);
       }
     }
     load();
-    const id = setInterval(load, 20000);
+    const id = setInterval(load, REFRESH_MS);
     return () => {
       alive = false;
       clearInterval(id);
@@ -81,7 +86,11 @@ export default function LiveTicker() {
   }, []);
 
   return (
-    <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+    <div>
+      <div className="mb-2 flex items-center justify-end">
+        <RefreshCountdown intervalMs={REFRESH_MS} updatedAt={updatedAt} />
+      </div>
+      <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
       {CARDS.map((c) => {
         const q = quotes[c.symbol];
         const up = (q?.changePct ?? 0) >= 0;
@@ -120,6 +129,7 @@ export default function LiveTicker() {
           </Link>
         );
       })}
-    </section>
+      </section>
+    </div>
   );
 }
