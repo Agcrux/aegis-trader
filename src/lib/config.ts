@@ -18,13 +18,18 @@ export const PAPER_GATE_DAYS = 30;
 /** Max owner users allowed to register (you + one family member/friend). */
 export const MAX_OWNERS = 2;
 
-/** Default per-account caps. Owners can tighten (or loosen up to the vision's ceilings) their own. */
+/**
+ * Default per-account caps. Owners can tighten (or loosen up to the ceilings)
+ * their own on the System page. Raised for the paper phase so the loosened
+ * entry rules can actually fill more positions (applies to NEW accounts; edit
+ * an existing account's caps in the UI to raise them too).
+ */
 export const DEFAULT_CAPS: Caps = {
-  maxPositionPct: 20, // one position may hold at most 20% of equity
-  maxPositions: 5,
+  maxPositionPct: 15, // one position may hold at most 15% of equity (smaller → room for more names)
+  maxPositions: 8,
   dailyLossPct: 5, // stop trading for the day at -5%
   freezeDrawdownPct: 30, // master circuit breaker agreed in the vision (default ceiling)
-  maxTradesPerDay: 6,
+  maxTradesPerDay: 10,
 };
 
 /** Hard ceilings — server rejects caps looser than these regardless of UI input. */
