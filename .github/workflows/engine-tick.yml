@@ -1,0 +1,35 @@
+name: Engine tick
+
+# Free scheduler for the trading engine. GitHub cron is best-effort (runs can
+# start minutes late) — fine for a daily-bar swing system. Vercel's own cron
+# (vercel.json) provides a once-a-day backup tick.
+
+on:
+  schedule:
+    # Every 30 min during US market hours (13:00–21:00 UTC, Mon–Fri)
+    - cron: "*/30 13-20 * * 1-5"
+    # Every 2 hours around the clock for FX and housekeeping
+    - cron: "0 */2 * * *"
+    # Daily Discord summary shortly after US close
+    - cron: "10 21 * * 1-5"
+  workflow_dispatch: {}
+
+jobs:
+  tick:
+    # Fork guard: never run on forks; require the deployment URL variable.
+    if: github.repository == 'Agcrux/aegis-trader' && vars.TICK_URL != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Trigger engine
+        if: github.event.schedule != '10 21 * * 1-5'
+        run: |
+          curl -fsS -X POST "${{ vars.TICK_URL }}/api/engine/tick" \
+            -H "x-cron-secret: ${{ secrets.CRON_SECRET }}" \
+            --max-time 90 --retry 2 --retry-delay 10
+      - name: Daily summary
+        if: github.event.schedule == '10 21 * * 1-5' || github.event_name == 'workflow_dispatch'
+        run: |
+          curl -fsS -X POST "${{ vars.TICK_URL }}/api/engine/summary" \
+            -H "x-cron-secret: ${{ secrets.CRON_SECRET }}" \
+            --max-time 60 --retry 2 --retry-delay 10

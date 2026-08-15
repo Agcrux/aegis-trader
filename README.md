@@ -1,36 +1,51 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Aegis Trader
 
-## Getting Started
+A guardrails-first, explainable paper-trading system for two family accounts. Systematic swing
+strategies scan US stocks/ETFs and major forex pairs; an optional Claude judgment layer vets
+every entry; and **every decision is journaled with what, when, and why** — mirrored to
+Discord. Hard spending caps, a drawdown circuit breaker, a 30-day paper gate, and a kill
+switch in each owner's pocket.
 
-First, run the development server:
+**Honesty first:** nothing here is financial advice, and no system — AI included — can
+guarantee trading profits. This build trades **simulated/practice money only**; there is no
+live-execution code path at all. The full agreed design lives in [VISION.md](VISION.md), the
+promises the code keeps in [docs/SAFETY.md](docs/SAFETY.md).
+
+## What's inside
+
+- **Next.js (React) on Vercel** — phone-first dashboard: accounts, positions, searchable
+  journal, performance vs. buy-and-hold SPY, strategy lab, system health & controls
+- **Engine as serverless ticks** — triggered by GitHub Actions cron (free) + Vercel cron
+  backup; Stooq's free daily data; internal simulator fills, with Alpaca **paper** / OANDA
+  **practice** adapters that activate when owners add their own keys
+- **Risk engine chokepoint** — per-account caps, daily loss stop, 30% drawdown freeze,
+  dormant options/futures legs with equity unlock thresholds
+- **Neon Postgres** (free tier) — schema bootstraps itself; without it the site runs a
+  read-only demo with sample data
+- **Discord** — webhook trade cards + `/status` `/pause` `/resume` slash commands
+- **Strategy lab** — ~5-year backtests net of costs vs. SPY; strategies must beat
+  doing-nothing to earn standing
+
+## Run locally
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open http://localhost:3000 — you'll be in demo mode. Copy `.env.example` to `.env.local` and
+fill values to go real; [docs/SETUP.md](docs/SETUP.md) is the click-by-click guide.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Deploy
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Deployed on Vercel from this repo. Setup order: Neon database → owners join with the invite
+code → Discord webhook → (optional) Anthropic key → broker practice keys. Again:
+[docs/SETUP.md](docs/SETUP.md).
 
-## Learn More
+## The rules this system lives by
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. Backtests gate strategies (beat buy-and-hold over ~5 years, net of costs, or no standing).
+2. 30 clean days of paper trading before LIVE is even accepted — then the owner must type it.
+3. Only an account's owner controls it. Full visibility for both; personal brakes.
+4. Every trade explains itself in writing, at the moment it happens.
+5. If the index fund is winning, the daily summary says so.
