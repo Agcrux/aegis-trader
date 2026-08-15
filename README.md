@@ -1,5 +1,8 @@
 # Aegis Trader
 
+**Live:** https://aegis-trader-two.vercel.app
+*(Note: the similarly named `aegis-trader.vercel.app` is an unrelated third-party site.)*
+
 A guardrails-first, explainable paper-trading system for two family accounts. Systematic swing
 strategies scan US stocks/ETFs and major forex pairs; an optional Claude judgment layer vets
 every entry; and **every decision is journaled with what, when, and why** — mirrored to
