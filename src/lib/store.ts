@@ -99,14 +99,8 @@ export async function getEquitySeries(accountId: string): Promise<EquityPoint[]>
   }));
 }
 
-export async function getTrades(limit = 50): Promise<Trade[]> {
-  if (isSetupIncomplete()) return [];
-  await ensureSchema();
-  const sql = getSql();
-  const rows = (await sql`SELECT * FROM trades ORDER BY created_at DESC LIMIT ${limit}`) as Array<
-    Record<string, unknown>
-  >;
-  return rows.map((r) => ({
+function mapTradeRow(r: Record<string, unknown>): Trade {
+  return {
     id: String(r.id),
     accountId: String(r.account_id),
     leg: String(r.leg) as Trade["leg"],
@@ -121,7 +115,26 @@ export async function getTrades(limit = 50): Promise<Trade[]> {
     strategy: r.strategy ? String(r.strategy) : null,
     realizedPnl: r.realized_pnl === null ? null : Number(r.realized_pnl),
     createdAt: String(r.created_at),
-  }));
+  };
+}
+
+export async function getTrades(limit = 50): Promise<Trade[]> {
+  if (isSetupIncomplete()) return [];
+  await ensureSchema();
+  const sql = getSql();
+  const rows = (await sql`SELECT * FROM trades ORDER BY created_at DESC LIMIT ${limit}`) as Array<
+    Record<string, unknown>
+  >;
+  return rows.map(mapTradeRow);
+}
+
+export async function getTradesByAccount(accountId: string, limit = 200): Promise<Trade[]> {
+  if (isSetupIncomplete()) return [];
+  await ensureSchema();
+  const sql = getSql();
+  const rows = (await sql`SELECT * FROM trades WHERE account_id = ${accountId}
+    ORDER BY created_at DESC LIMIT ${limit}`) as Array<Record<string, unknown>>;
+  return rows.map(mapTradeRow);
 }
 
 export async function getEngineRuns(limit = 20): Promise<EngineRun[]> {
