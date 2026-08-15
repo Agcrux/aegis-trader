@@ -32,6 +32,6 @@ export async function POST(req: NextRequest) {
   if (!ok) {
     return NextResponse.json({ error: "Wrong email or password." }, { status: 401 });
   }
-  await createSession({ id: user.id, email: user.email, name: user.name });
+  await createSession({ id: user.id, email: user.email, name: user.name, role: "OWNER" });
   return NextResponse.json({ ok: true });
 }

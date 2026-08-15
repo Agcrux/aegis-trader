@@ -14,11 +14,26 @@ API keys.
 
 ## 2. Claim the two owner seats (~1 minute each)
 
-1. On the site, open **Join with invite code**.
-2. Enter the `INVITE_CODE` (the person who deployed has it — it's in Vercel → Settings →
+1. Make sure `AUTH_SECRET` exists in the environment (any long random string — it signs the
+   session cookie). Without it, owner sign-in is refused on purpose.
+2. On the site, open **Join with invite code**.
+3. Enter the `INVITE_CODE` (the person who deployed has it — it's in Vercel → Settings →
    Environment Variables), your name, email, and a 10+ character password.
-3. Your account appears on the dashboard: PAPER mode, $25 simulated, your caps, your kill
+4. Your account appears on the dashboard: PAPER mode, $25 simulated, your caps, your kill
    switch. Seat limit is 2 — after that, joining is closed.
+
+## 2b. The tester sandbox (nothing to configure)
+
+Anyone can press **Continue as tester** on the sign-in page. That hands out a $100,000
+play-money sandbox with real live prices, stored in a cookie in that visitor's own browser:
+
+- No database row, no owner seat, no real dollars, and no broker is ever contacted.
+- The dashboard headline is **potential earnings** — what those paper trades would have made in
+  real USD.
+- Testers can trade by hand from any symbol page and can run the real strategy engine against
+  their own sandbox. They cannot see or touch owner accounts, the journal, or system settings.
+- The sandbox survives refreshes and restarts, but it is per-browser: clearing cookies or
+  switching device starts fresh. "Reset sandbox" does the same on purpose.
 
 ## 3. Discord notifications (~5 minutes, free)
 

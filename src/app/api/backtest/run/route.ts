@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireSession } from "@/lib/auth";
+import { requireOwner } from "@/lib/auth";
 import { BACKTEST_STRATEGIES, runBacktest } from "@/lib/backtest";
 import { ensureSchema, getSql, newId } from "@/lib/db";
 import { isDemoMode } from "@/lib/config";
@@ -17,7 +17,7 @@ export async function POST() {
   }
   let user;
   try {
-    user = await requireSession();
+    user = await requireOwner();
   } catch (res) {
     return res as Response;
   }

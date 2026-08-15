@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ensureSchema, getSql } from "@/lib/db";
-import { requireSession } from "@/lib/auth";
+import { requireOwner } from "@/lib/auth";
 import { paperGateStatus } from "@/lib/risk";
 import { isDemoMode } from "@/lib/config";
 import { getErrorsInWindow } from "@/lib/store";
@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
   }
   let user;
   try {
-    user = await requireSession();
+    user = await requireOwner();
   } catch (res) {
     return res as Response;
   }

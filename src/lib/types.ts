@@ -139,10 +139,14 @@ export interface SignalCandidate {
   indicators: Record<string, number | string>;
 }
 
+/** OWNER controls a real account; TESTER only gets a browser-local paper sandbox. */
+export type SessionRole = "OWNER" | "TESTER";
+
 export interface SessionUser {
   id: string;
   email: string;
   name: string;
+  role: SessionRole;
 }
 
 export interface HealthStatus {

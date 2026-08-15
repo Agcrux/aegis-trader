@@ -26,3 +26,11 @@ before anything else.
    symbol rather than guess.
 10. **Secrets stay yours.** API keys live in Vercel environment variables that owners paste
     themselves. The repo is public; nothing secret is ever committed.
+11. **Tester sandboxes are sealed off.** A tester session can only read and write its own cookie
+    (`src/lib/paper/*`): no database row, no broker call, no owner data, and no access to the
+    real engine, journal, backtests or system settings. Its trades pass through the same risk
+    chokepoint and pay the same slippage, so the numbers stay honest — but the money is play
+    money, and "potential earnings" is labelled as exactly that everywhere it appears.
+12. **Owner sessions need a real secret.** Sessions are signed HS256 cookies. Owner sign-in is
+    refused unless `AUTH_SECRET` is set; only tester sandboxes fall back to a key derived from
+    the database URL, so a half-configured deployment can never mint an owner session.

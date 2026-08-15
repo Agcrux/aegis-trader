@@ -62,6 +62,44 @@ export const MEANREV_UNIVERSE = ["SPY", "QQQ", "IWM", "DIA", "XLK", "XLV"] as co
 /** FX pairs scanned by the trend strategy (majors only, per the vision). */
 export const FX_WATCHLIST = ["EURUSD", "GBPUSD", "USDJPY", "AUDUSD"] as const;
 
+/** Human names for every tradable symbol, shown on cards and detail pages. */
+export const SYMBOL_NAMES: Record<string, string> = {
+  SPY: "SPDR S&P 500 ETF Trust",
+  QQQ: "Invesco QQQ Trust",
+  IWM: "iShares Russell 2000 ETF",
+  DIA: "SPDR Dow Jones Industrial Average ETF",
+  XLK: "Technology Select Sector SPDR",
+  XLE: "Energy Select Sector SPDR",
+  XLF: "Financial Select Sector SPDR",
+  XLV: "Health Care Select Sector SPDR",
+  GLD: "SPDR Gold Shares",
+  TLT: "iShares 20+ Year Treasury Bond ETF",
+  AAPL: "Apple Inc.",
+  MSFT: "Microsoft Corporation",
+  NVDA: "NVIDIA Corporation",
+  AMZN: "Amazon.com, Inc.",
+  GOOGL: "Alphabet Inc. Class A",
+  META: "Meta Platforms, Inc.",
+  EURUSD: "Euro / US Dollar",
+  GBPUSD: "British Pound / US Dollar",
+  USDJPY: "US Dollar / Japanese Yen",
+  AUDUSD: "Australian Dollar / US Dollar",
+};
+
+/** Every symbol a page or sandbox may reference, in display order. */
+export const ALL_SYMBOLS = [...STOCK_WATCHLIST, ...FX_WATCHLIST] as const;
+
+/** The single whitelist check: unknown symbols get no data and no orders. */
+export function legForSymbol(symbol: string): "STOCK" | "FX" | null {
+  const s = symbol.trim().toUpperCase();
+  if ((STOCK_WATCHLIST as readonly string[]).includes(s)) return "STOCK";
+  if ((FX_WATCHLIST as readonly string[]).includes(s)) return "FX";
+  return null;
+}
+
+/** Play money handed to a tester sandbox. No real funds are ever involved. */
+export const TESTER_START_CASH = 100000;
+
 /** Benchmark symbol for the "would doing nothing have beaten us?" comparison. */
 export const BENCHMARK = "SPY";
 

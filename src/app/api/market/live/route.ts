@@ -12,9 +12,9 @@ export async function GET(req: NextRequest) {
   for (const s of STOCK_WATCHLIST) allowed.set(s, "STOCK");
   for (const s of FX_WATCHLIST) allowed.set(s, "FX");
 
-  const requested = param
-    .split(",")
-    .map((s) => s.trim().toUpperCase())
+  const requested = [
+    ...new Set(param.split(",").map((s) => s.trim().toUpperCase())),
+  ]
     .filter((s) => allowed.has(s))
     .slice(0, 24);
   if (requested.length === 0) {

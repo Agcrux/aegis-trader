@@ -67,6 +67,6 @@ export async function POST(req: NextRequest) {
     discord: true,
     accountLabel: name + "'s account",
   });
-  await createSession({ id: userId, email, name });
+  await createSession({ id: userId, email, name, role: "OWNER" });
   return NextResponse.json({ ok: true });
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import type { LiveQuote } from "@/lib/data/live";
 import { STOCK_WATCHLIST } from "@/lib/config";
 
@@ -97,7 +98,11 @@ export default function MarketMovers() {
                   key={q.symbol}
                   className="border-b border-outline-variant/50 transition-colors hover:bg-surface-container-high"
                 >
-                  <td className="px-4 py-1.5 font-bold text-on-surface">{q.symbol}</td>
+                  <td className="px-4 py-1.5 font-bold text-on-surface">
+                    <Link href={`/markets/${q.symbol}`} className="hover:text-primary hover:underline">
+                      {q.symbol}
+                    </Link>
+                  </td>
                   <td className="px-4 py-1.5 text-right text-on-surface">
                     {q.price.toLocaleString("en-US", { maximumFractionDigits: 2 })}
                   </td>

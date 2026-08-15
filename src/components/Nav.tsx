@@ -18,9 +18,19 @@ const TABS = [
   { href: "/system", label: "System", icon: "settings" },
 ] as const;
 
-export default function Nav({ userName }: { userName: string | null }) {
+/** Testers only get their sandbox and the market terminal. */
+const TESTER_TABS: ReadonlyArray<string> = ["/dashboard", "/markets"];
+
+export default function Nav({
+  userName,
+  isTester = false,
+}: {
+  userName: string | null;
+  isTester?: boolean;
+}) {
   const pathname = usePathname();
   const router = useRouter();
+  const tabs = isTester ? TABS.filter((t) => TESTER_TABS.includes(t.href)) : TABS;
 
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -39,16 +49,22 @@ export default function Nav({ userName }: { userName: string | null }) {
             </span>
             <div>
               <h1 className="text-base font-semibold text-on-surface">Aegis Trader</h1>
-              <p className="mt-0.5 text-[11px] uppercase tracking-[0.15em] text-on-surface-variant">
-                Guardrails Grade
-              </p>
+              {isTester ? (
+                <p className="mt-0.5 inline-block rounded-xs bg-tertiary/15 px-1.5 py-0.5 font-mono text-[10px] font-bold text-tertiary">
+                  TESTER · PLAY MONEY
+                </p>
+              ) : (
+                <p className="mt-0.5 text-[11px] uppercase tracking-[0.15em] text-on-surface-variant">
+                  Guardrails Grade
+                </p>
+              )}
             </div>
           </Link>
         </div>
 
         <div className="flex-1 overflow-y-auto">
           <ul className="space-y-1">
-            {TABS.map((t) => {
+            {tabs.map((t) => {
               const active = pathname.startsWith(t.href);
               return (
                 <li key={t.href}>
@@ -99,7 +115,7 @@ export default function Nav({ userName }: { userName: string | null }) {
       {/* Mobile bottom tab bar */}
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-outline-variant bg-surface-container-low sm:hidden">
         <div className="mx-auto flex max-w-3xl justify-around">
-          {TABS.map((t) => {
+          {tabs.map((t) => {
             const active = pathname.startsWith(t.href);
             return (
               <Link

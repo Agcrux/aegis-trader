@@ -1,5 +1,7 @@
 import { Card, Section, Stat } from "@/components/ui";
 import EquityChart from "@/components/EquityChart";
+import OwnerOnlyNotice from "@/components/paper/OwnerOnlyNotice";
+import { getSession } from "@/lib/auth";
 import { getAccounts, getEquitySeries, getTrades } from "@/lib/store";
 import { fetchDailyBars } from "@/lib/data/market";
 import { BENCHMARK } from "@/lib/config";
@@ -8,6 +10,9 @@ import { fmtMoney, fmtPct } from "@/lib/format";
 export const dynamic = "force-dynamic";
 
 export default async function PerformancePage() {
+  const session = await getSession();
+  if (session?.role === "TESTER") return <OwnerOnlyNotice surface="Analytics" />;
+
   const [accounts, trades] = await Promise.all([getAccounts(), getTrades(200)]);
 
   return (

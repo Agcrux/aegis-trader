@@ -17,8 +17,9 @@ async function authorize(req: NextRequest): Promise<string | null> {
     if (req.headers.get("x-cron-secret") === secret) return "github-cron";
     if (req.headers.get("authorization") === `Bearer ${secret}`) return "vercel-cron";
   }
+  // Tester sessions never reach the real engine — their sandbox has its own run.
   const user = await getSession();
-  if (user) return `manual:${user.name}`;
+  if (user?.role === "OWNER") return `manual:${user.name}`;
   return null;
 }
 

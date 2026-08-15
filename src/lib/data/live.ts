@@ -136,8 +136,15 @@ const RANGES: Record<string, { range: string; interval: string; revalidate: numb
   "1D": { range: "1d", interval: "5m", revalidate: 30 },
   "1W": { range: "5d", interval: "30m", revalidate: 120 },
   "1M": { range: "1mo", interval: "1d", revalidate: 600 },
+  "6M": { range: "6mo", interval: "1d", revalidate: 900 },
   YTD: { range: "ytd", interval: "1d", revalidate: 600 },
+  "1Y": { range: "1y", interval: "1d", revalidate: 900 },
+  "5Y": { range: "5y", interval: "1wk", revalidate: 3600 },
 };
+
+/** Ranges the history endpoint accepts, in display order. */
+export const HISTORY_RANGES = ["1D", "1W", "1M", "6M", "YTD", "1Y", "5Y"] as const;
+export type HistoryRange = (typeof HISTORY_RANGES)[number];
 
 /** Chart history for the live chart component. */
 export async function getHistory(

@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import type { LiveQuote } from "@/lib/data/live";
 
 /**
  * The four sparkline index cards from the terminal design, driven by real
- * quotes and refreshed every 20 seconds.
+ * quotes and refreshed every 20 seconds. Each card links to that symbol's
+ * chart page.
  */
 
 const CARDS: Array<{ symbol: string; label: string }> = [
@@ -84,9 +86,10 @@ export default function LiveTicker() {
         const q = quotes[c.symbol];
         const up = (q?.changePct ?? 0) >= 0;
         return (
-          <div
+          <Link
             key={c.symbol}
-            className="group relative flex h-24 flex-col justify-between overflow-hidden rounded-sm border border-outline-variant bg-surface p-3"
+            href={`/markets/${c.symbol}`}
+            className="group relative flex h-24 flex-col justify-between overflow-hidden rounded-sm border border-outline-variant bg-surface p-3 transition-colors hover:border-primary/60 hover:bg-surface-container-low"
           >
             <div className="z-10 flex items-start justify-between">
               <span className="font-mono text-[13px] text-on-surface-variant">{c.label}</span>
@@ -105,11 +108,16 @@ export default function LiveTicker() {
                 </span>
               )}
             </div>
-            <div className="z-10 font-mono text-lg font-semibold text-on-surface">
-              {q ? q.price.toLocaleString("en-US", { maximumFractionDigits: 4 }) : "—"}
+            <div className="z-10 flex items-baseline justify-between">
+              <span className="font-mono text-lg font-semibold text-on-surface">
+                {q ? q.price.toLocaleString("en-US", { maximumFractionDigits: 4 }) : "—"}
+              </span>
+              <span className="z-10 font-mono text-[10px] text-on-surface-variant opacity-0 transition-opacity group-hover:opacity-100">
+                open chart →
+              </span>
             </div>
             {q ? <Spark points={q.spark} up={up} /> : null}
-          </div>
+          </Link>
         );
       })}
     </section>

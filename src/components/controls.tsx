@@ -275,6 +275,36 @@ export function BacktestButton({ demo }: { demo: boolean }) {
   );
 }
 
+/** One-click entry to the paper sandbox: no credentials, no money, real prices. */
+export function TesterButton() {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function start() {
+    setBusy(true);
+    setError(null);
+    const res = await fetch("/api/auth/tester", { method: "POST" });
+    const data = (await res.json().catch(() => ({}))) as { error?: string };
+    if (!res.ok) {
+      setBusy(false);
+      setError(data.error ?? "Could not start a tester sandbox.");
+      return;
+    }
+    router.push("/dashboard");
+    router.refresh();
+  }
+
+  return (
+    <div>
+      <button onClick={start} disabled={busy} className={`${btnPrimary} w-full`}>
+        {busy ? "Opening sandbox…" : "Continue as tester"}
+      </button>
+      {error ? <p className="mt-2 text-xs text-rose-400">{error}</p> : null}
+    </div>
+  );
+}
+
 export function AuthForm({ kind }: { kind: "login" | "join" }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);

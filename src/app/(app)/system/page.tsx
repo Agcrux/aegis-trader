@@ -1,5 +1,6 @@
 import { Card, Dot, Section } from "@/components/ui";
 import { CapsEditor, DiscordLinkForm } from "@/components/controls";
+import OwnerOnlyNotice from "@/components/paper/OwnerOnlyNotice";
 import { getAccounts, getEngineRuns, getHealth } from "@/lib/store";
 import { getSession } from "@/lib/auth";
 import { isDemoMode } from "@/lib/config";
@@ -8,17 +9,19 @@ import { fmtDateTime, timeAgo } from "@/lib/format";
 export const dynamic = "force-dynamic";
 
 export default async function SystemPage() {
+  const user = await getSession();
+  if (user?.role === "TESTER") return <OwnerOnlyNotice surface="System" />;
+
   const demo = isDemoMode();
-  const [health, runs, accounts, user] = await Promise.all([
+  const [health, runs, accounts] = await Promise.all([
     getHealth(),
     getEngineRuns(15),
     getAccounts(),
-    getSession(),
   ]);
 
   const checks: Array<{ ok: boolean; label: string; hint: string }> = [
     { ok: health.db, label: "Database", hint: health.db ? "Connected" : "Add DATABASE_URL (Neon free tier) — required for real paper trading" },
-    { ok: health.dataFeed, label: "Market data (Stooq)", hint: health.dataFeed ? "Reachable" : "Feed unreachable right now" },
+    { ok: health.dataFeed, label: "Market data (Stooq → Yahoo)", hint: health.dataFeed ? "Daily bars available" : "Both daily-bar sources are unreachable right now" },
     { ok: health.discordWebhook, label: "Discord notifications", hint: health.discordWebhook ? "Webhook configured" : "Add DISCORD_WEBHOOK_URL for trade cards on your phones" },
     { ok: health.discordInteractions, label: "Discord kill switch", hint: health.discordInteractions ? "Slash commands configured" : "Add DISCORD_PUBLIC_KEY to enable /pause, /resume, /status" },
     { ok: health.aiVet, label: "AI judgment layer", hint: health.aiVet ? "Claude vets every entry" : "Add ANTHROPIC_API_KEY to enable AI vetting (optional, pennies/month)" },

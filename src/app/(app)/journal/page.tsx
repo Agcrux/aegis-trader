@@ -1,5 +1,7 @@
 import { Card, KindBadge, Section } from "@/components/ui";
+import OwnerOnlyNotice from "@/components/paper/OwnerOnlyNotice";
 import { getJournal } from "@/lib/store";
+import { getSession } from "@/lib/auth";
 import { fmtDateTime } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -9,6 +11,9 @@ export default async function JournalPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  const session = await getSession();
+  if (session?.role === "TESTER") return <OwnerOnlyNotice surface="Trade journal" />;
+
   const params = await searchParams;
   const q = typeof params.q === "string" ? params.q.toLowerCase() : "";
   const kind = typeof params.kind === "string" ? params.kind : "";

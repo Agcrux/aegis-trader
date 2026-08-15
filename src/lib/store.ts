@@ -1,5 +1,6 @@
 import { ensureSchema, getSql } from "./db";
-import { env, isSetupIncomplete } from "./config";
+import { BENCHMARK, env, isSetupIncomplete } from "./config";
+import { fetchDailyBars } from "./data/market";
 import type {
   Account,
   BacktestResult,
@@ -185,13 +186,12 @@ export async function getHealth(): Promise<HealthStatus> {
       db = false;
     }
   }
+  // Tests the whole chain (Stooq, then the Yahoo fallback) rather than one host,
+  // so a rate-limited Stooq doesn't report a feed outage the engine isn't having.
   let dataFeed = false;
   try {
-    const res = await fetch("https://stooq.com/q/d/l/?s=spy.us&i=d", {
-      method: "HEAD",
-      signal: AbortSignal.timeout(6000),
-    });
-    dataFeed = res.ok;
+    const bars = await fetchDailyBars(BENCHMARK, "STOCK", 40);
+    dataFeed = bars.length > 0;
   } catch {
     dataFeed = false;
   }

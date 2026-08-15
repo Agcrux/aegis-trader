@@ -73,6 +73,17 @@ export default async function LandingPage() {
         )}
       </div>
 
+      {user ? null : (
+        <p className="mt-3 text-xs text-on-surface-variant">
+          Just want to try it?{" "}
+          <Link href="/login" className="text-primary hover:underline">
+            Take a tester sandbox
+          </Link>{" "}
+          — $100,000 of play money on real live prices, tracking what those trades would have
+          earned in real USD. No card, no broker, nothing spent.
+        </p>
+      )}
+
       {!ready ? (
         <p className="mt-4 text-xs text-[#ffde9c]">
           Setup note: no database is connected yet, so accounts and the engine are offline. The

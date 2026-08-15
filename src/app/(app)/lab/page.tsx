@@ -1,6 +1,8 @@
 import { Card, Section, Stat } from "@/components/ui";
 import { BacktestButton } from "@/components/controls";
+import OwnerOnlyNotice from "@/components/paper/OwnerOnlyNotice";
 import { getBacktests } from "@/lib/store";
+import { getSession } from "@/lib/auth";
 import { isSetupIncomplete } from "@/lib/config";
 import { fmtDateTime } from "@/lib/format";
 
@@ -22,6 +24,9 @@ const STRATEGY_EXPLAINERS: Record<string, string> = {
 };
 
 export default async function LabPage() {
+  const session = await getSession();
+  if (session?.role === "TESTER") return <OwnerOnlyNotice surface="Strategy lab" />;
+
   const incomplete = isSetupIncomplete();
   const backtests = await getBacktests();
 

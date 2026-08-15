@@ -8,18 +8,44 @@ import { getSession } from "@/lib/auth";
 import { isSetupIncomplete, OPTIONS_UNLOCK_EQUITY, FUTURES_UNLOCK_EQUITY, PAPER_GATE_DAYS } from "@/lib/config";
 import { fmtMoney, fmtPct, fmtQty, timeAgo } from "@/lib/format";
 import { bestPrice } from "@/lib/data/live";
+import { readSandboxOrFresh } from "@/lib/paper/cookie";
+import { buildSandboxView } from "@/lib/paper/view";
+import TesterOverview from "@/components/paper/TesterOverview";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
+function daysSince(iso: string | null): number {
+  if (!iso) return 0;
+  return Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
+}
+
 export default async function DashboardPage() {
+  const session = await getSession();
+
+  // Testers see their own play-money sandbox, never the real accounts.
+  if (session?.role === "TESTER") {
+    const view = await buildSandboxView(await readSandboxOrFresh());
+    return (
+      <>
+        <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
+          <h1 className="text-xl font-semibold text-on-surface">Tester sandbox</h1>
+          <p className="font-mono text-[12px] text-on-surface-variant">
+            paper trading · real prices · no real money
+          </p>
+        </div>
+        <TesterOverview view={view} />
+      </>
+    );
+  }
+
   const incomplete = isSetupIncomplete();
-  const [accounts, positions, journal, trades, user] = await Promise.all([
+  const user = session;
+  const [accounts, positions, journal, trades] = await Promise.all([
     getAccounts(),
     getPositions(),
     getJournal(8),
     getTrades(200),
-    getSession(),
   ]);
 
   // Enrich positions with a LIVE price (real-time quote, daily close fallback).
@@ -86,9 +112,7 @@ export default async function DashboardPage() {
                 a.startingEquity > 0
                   ? ((equity - a.startingEquity) / a.startingEquity) * 100
                   : 0;
-              const paperDays = a.paperStartedAt
-                ? Math.floor((Date.now() - new Date(a.paperStartedAt).getTime()) / 86400000)
-                : 0;
+              const paperDays = daysSince(a.paperStartedAt);
               const gatePct = Math.min(100, (paperDays / PAPER_GATE_DAYS) * 100);
               return (
                 <Card key={a.id}>
@@ -158,7 +182,11 @@ export default async function DashboardPage() {
                 const acct = accounts.find((a) => a.id === p.accountId);
                 const pnl = p.unrealizedPnl ?? 0;
                 return (
-                  <div key={p.id} className="flex items-center justify-between py-2.5 text-sm">
+                  <Link
+                    key={p.id}
+                    href={`/markets/${p.symbol}`}
+                    className="flex items-center justify-between py-2.5 text-sm transition-colors hover:bg-surface-container-high"
+                  >
                     <div>
                       <span className="font-semibold text-zinc-100">{p.symbol}</span>
                       <span className="ml-2 rounded bg-zinc-800 px-1.5 py-0.5 text-[10px] text-zinc-400">
@@ -175,7 +203,7 @@ export default async function DashboardPage() {
                         {fmtMoney(pnl).replace("$-", "-$")}
                       </div>
                     </div>
-                  </div>
+                  </Link>
                 );
               })}
             </div>
