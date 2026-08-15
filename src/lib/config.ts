@@ -86,7 +86,15 @@ export const env = {
   oandaToken: () => process.env.OANDA_TOKEN || "",
 };
 
-/** True when no database is configured — the app serves read-only sample data. */
-export function isDemoMode(): boolean {
+/**
+ * True when no database is connected. Market data is ALWAYS live (never
+ * sampled); this flag only gates the account/engine layer, which needs the
+ * database. When true the app shows a "setup incomplete" state with empty
+ * real data — never simulated portfolios.
+ */
+export function isSetupIncomplete(): boolean {
   return !env.databaseUrl();
 }
+
+/** @deprecated use isSetupIncomplete — retained so older imports keep compiling. */
+export const isDemoMode = isSetupIncomplete;

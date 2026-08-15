@@ -1,30 +1,32 @@
 import { Card, KindBadge, ModeBadge, Section, Stat } from "@/components/ui";
 import { ModeControls, RunNowButton } from "@/components/controls";
 import EquityChart from "@/components/EquityChart";
-import { getAccounts, getEquitySeries, getJournal, getPositions } from "@/lib/store";
+import LiveTicker from "@/components/live/LiveTicker";
+import LiveAnalytics from "@/components/live/LiveAnalytics";
+import { getAccounts, getEquitySeries, getJournal, getPositions, getTrades } from "@/lib/store";
 import { getSession } from "@/lib/auth";
-import { isDemoMode, OPTIONS_UNLOCK_EQUITY, FUTURES_UNLOCK_EQUITY, PAPER_GATE_DAYS } from "@/lib/config";
+import { isSetupIncomplete, OPTIONS_UNLOCK_EQUITY, FUTURES_UNLOCK_EQUITY, PAPER_GATE_DAYS } from "@/lib/config";
 import { fmtMoney, fmtPct, fmtQty, timeAgo } from "@/lib/format";
-import { lastPrice } from "@/lib/data/market";
+import { bestPrice } from "@/lib/data/live";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
-  const demo = isDemoMode();
-  const [accounts, positions, journal, user] = await Promise.all([
+  const incomplete = isSetupIncomplete();
+  const [accounts, positions, journal, trades, user] = await Promise.all([
     getAccounts(),
     getPositions(),
     getJournal(8),
+    getTrades(200),
     getSession(),
   ]);
 
-  // Enrich positions with a best-effort last price (cheap: few symbols, cached).
+  // Enrich positions with a LIVE price (real-time quote, daily close fallback).
   const enriched = await Promise.all(
     positions.map(async (p) => {
-      if (p.lastPrice) return p;
       try {
-        const lp = await lastPrice(p.symbol, p.leg === "FX" ? "FX" : "STOCK");
+        const lp = (await bestPrice(p.symbol, p.leg === "FX" ? "FX" : "STOCK")) ?? p.avgPrice;
         return {
           ...p,
           lastPrice: lp,
@@ -37,9 +39,42 @@ export default async function DashboardPage() {
     })
   );
 
+  // Real portfolio analytics (no simulation) for the live widget.
+  const openPnl = enriched.reduce((s, p) => s + (p.unrealizedPnl ?? 0), 0);
+  const closed = trades.filter((t) => t.realizedPnl !== null);
+  const wins = closed.filter((t) => (t.realizedPnl ?? 0) > 0).length;
+  const winRatePct = closed.length ? (wins / closed.length) * 100 : null;
+  const totalStart = accounts.reduce((s, a) => s + a.startingEquity, 0);
+  const totalEquity =
+    accounts.reduce((s, a) => s + a.simCash, 0) +
+    enriched.reduce((s, p) => s + (p.marketValue ?? 0), 0);
+  const totalReturnPct = totalStart > 0 ? ((totalEquity - totalStart) / totalStart) * 100 : 0;
+
   return (
     <>
-      <Section title="Accounts" action={<RunNowButton disabled={demo} />}>
+      <div className="mb-4 grid grid-cols-1 gap-3 lg:grid-cols-3">
+        <div className="lg:col-span-2">
+          <LiveTicker />
+        </div>
+        <LiveAnalytics
+          dayPnl={openPnl}
+          totalEquity={totalEquity}
+          totalReturnPct={totalReturnPct}
+          winRatePct={winRatePct}
+          openPositions={enriched.length}
+        />
+      </div>
+
+      <Section title="Accounts" action={<RunNowButton disabled={incomplete} />}>
+        {accounts.length === 0 ? (
+          <Card>
+            <p className="text-sm text-on-surface-variant">
+              {incomplete
+                ? "No database connected yet, so there are no accounts. Market data above is live. Connect a Postgres database (see docs/SETUP.md) to bring accounts and the engine online."
+                : "No owner accounts yet. Use the invite code on the Join page to claim the two owner seats — each starts a fresh $25 paper account."}
+            </p>
+          </Card>
+        ) : null}
         <div className="grid gap-4 sm:grid-cols-2">
           {await Promise.all(
             accounts.map(async (a) => {
@@ -99,8 +134,8 @@ export default async function DashboardPage() {
                       label={a.label}
                       mode={a.mode}
                       frozen={a.frozen}
-                      isOwner={demo ? false : user?.id === a.ownerUserId}
-                      demo={demo}
+                      isOwner={incomplete ? false : user?.id === a.ownerUserId}
+                      demo={incomplete}
                     />
                   </div>
                 </Card>

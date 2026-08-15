@@ -1,5 +1,5 @@
 import { ensureSchema, getSql } from "./db";
-import { env, isDemoMode } from "./config";
+import { env, isSetupIncomplete } from "./config";
 import type {
   Account,
   BacktestResult,
@@ -11,23 +11,15 @@ import type {
   Position,
   Trade,
 } from "./types";
-import {
-  demoAccounts,
-  demoBacktests,
-  demoEquity,
-  demoJournal,
-  demoPositions,
-  demoRuns,
-  demoTrades,
-} from "./demo";
 
 /**
- * Read layer used by server components. Every function transparently serves
- * the demo dataset when no database is configured.
+ * Read layer used by server components. Returns real data from the database.
+ * When no database is connected, returns empty results (no sample data) —
+ * market-data widgets remain live regardless.
  */
 
 export async function getAccounts(): Promise<Account[]> {
-  if (isDemoMode()) return demoAccounts;
+  if (isSetupIncomplete()) return [];
   await ensureSchema();
   const sql = getSql();
   const rows = (await sql`SELECT a.*, u.name AS owner_name FROM accounts a
@@ -54,7 +46,7 @@ export async function getAccounts(): Promise<Account[]> {
 }
 
 export async function getPositions(): Promise<Position[]> {
-  if (isDemoMode()) return demoPositions;
+  if (isSetupIncomplete()) return [];
   await ensureSchema();
   const sql = getSql();
   const rows = (await sql`SELECT * FROM positions ORDER BY opened_at DESC`) as Array<
@@ -73,7 +65,7 @@ export async function getPositions(): Promise<Position[]> {
 }
 
 export async function getJournal(limit = 100): Promise<JournalEntry[]> {
-  if (isDemoMode()) return demoJournal;
+  if (isSetupIncomplete()) return [];
   await ensureSchema();
   const sql = getSql();
   const rows = (await sql`SELECT j.*, a.label AS account_label FROM journal j
@@ -94,7 +86,7 @@ export async function getJournal(limit = 100): Promise<JournalEntry[]> {
 }
 
 export async function getEquitySeries(accountId: string): Promise<EquityPoint[]> {
-  if (isDemoMode()) return demoEquity[accountId] ?? [];
+  if (isSetupIncomplete()) return [];
   await ensureSchema();
   const sql = getSql();
   const rows = (await sql`SELECT ts, equity, cash FROM equity_snapshots
@@ -107,7 +99,7 @@ export async function getEquitySeries(accountId: string): Promise<EquityPoint[]>
 }
 
 export async function getTrades(limit = 50): Promise<Trade[]> {
-  if (isDemoMode()) return demoTrades;
+  if (isSetupIncomplete()) return [];
   await ensureSchema();
   const sql = getSql();
   const rows = (await sql`SELECT * FROM trades ORDER BY created_at DESC LIMIT ${limit}`) as Array<
@@ -132,7 +124,7 @@ export async function getTrades(limit = 50): Promise<Trade[]> {
 }
 
 export async function getEngineRuns(limit = 20): Promise<EngineRun[]> {
-  if (isDemoMode()) return demoRuns;
+  if (isSetupIncomplete()) return [];
   await ensureSchema();
   const sql = getSql();
   const rows = (await sql`SELECT * FROM engine_runs ORDER BY ts DESC LIMIT ${limit}`) as Array<
@@ -150,7 +142,7 @@ export async function getEngineRuns(limit = 20): Promise<EngineRun[]> {
 }
 
 export async function getBacktests(): Promise<BacktestResult[]> {
-  if (isDemoMode()) return demoBacktests;
+  if (isSetupIncomplete()) return [];
   await ensureSchema();
   const sql = getSql();
   const rows = (await sql`SELECT DISTINCT ON (strategy) * FROM backtests
@@ -168,7 +160,7 @@ export async function getBacktests(): Promise<BacktestResult[]> {
 }
 
 export async function getErrorsInWindow(days: number): Promise<number> {
-  if (isDemoMode()) return 0;
+  if (isSetupIncomplete()) return 0;
   await ensureSchema();
   const sql = getSql();
   const rows = (await sql`SELECT COALESCE(SUM(errors), 0)::int AS n FROM engine_runs
@@ -177,7 +169,7 @@ export async function getErrorsInWindow(days: number): Promise<number> {
 }
 
 export async function getHealth(): Promise<HealthStatus> {
-  const demo = isDemoMode();
+  const demo = isSetupIncomplete();
   let db = false;
   let lastRun: string | null = null;
   if (!demo) {

@@ -1,8 +1,7 @@
 import { Card, Section, Stat } from "@/components/ui";
 import { BacktestButton } from "@/components/controls";
 import { getBacktests } from "@/lib/store";
-import { isDemoMode } from "@/lib/config";
-import { DEMO_NOTE } from "@/lib/demo";
+import { isSetupIncomplete } from "@/lib/config";
 import { fmtDateTime } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -23,17 +22,17 @@ const STRATEGY_EXPLAINERS: Record<string, string> = {
 };
 
 export default async function LabPage() {
-  const demo = isDemoMode();
+  const incomplete = isSetupIncomplete();
   const backtests = await getBacktests();
 
   return (
-    <Section title="Strategy lab" action={<BacktestButton demo={demo} />}>
-      <p className="mb-4 text-sm leading-relaxed text-zinc-400">
-        The gate from the project vision: a strategy must survive ~5 years of history —
+    <Section title="Strategy lab" action={<BacktestButton demo={incomplete} />}>
+      <p className="mb-4 text-sm leading-relaxed text-on-surface-variant">
+        The gate from the project vision: a strategy must survive ~5 years of real history —
         including crash periods — and beat just buying and holding SPY, net of realistic costs,
         before it deserves real money. Backtests flatter; treat a pass as permission to keep
-        proving on paper, not as a promise.
-        {demo ? ` ${DEMO_NOTE}` : ""}
+        proving on paper, not as a promise. All backtests run on live historical data.
+        {incomplete ? " Connect a database to run and store backtests." : ""}
       </p>
       <div className="space-y-4">
         {backtests.length === 0 ? (

@@ -1,23 +1,106 @@
 @import "tailwindcss";
 
+/*
+ * ProTrader Terminal design system (ported from pages/landing.html).
+ * Charcoal surfaces, neon-green primary, red sell/error, mono data font.
+ *
+ * The zinc/emerald/rose/sky/violet aliases below re-point Tailwind's default
+ * palette names (used across existing pages) at the terminal palette, so the
+ * whole app renders in this design language. New components should prefer the
+ * semantic names (surface, on-surface, primary, outline-variant, ...).
+ */
+
 :root {
-  --background: #09090b;
-  --foreground: #e4e4e7;
+  --background: #131313;
+  --foreground: #e5e2e1;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-inter);
+  --font-mono: var(--font-jetbrains);
+
+  /* Semantic terminal palette */
+  --color-surface: #171717;
+  --color-surface-dim: #131313;
+  --color-surface-bright: #393939;
+  --color-surface-container-lowest: #0e0e0e;
+  --color-surface-container-low: #1c1b1b;
+  --color-surface-container: #201f1f;
+  --color-surface-container-high: #2a2a2a;
+  --color-surface-container-highest: #353534;
+  --color-on-surface: #e5e2e1;
+  --color-on-surface-variant: #bacbb9;
+  --color-outline: #859585;
+  --color-outline-variant: #3b4a3d;
+  --color-primary: #75ff9e;
+  --color-primary-container: #00e676;
+  --color-on-primary: #003918;
+  --color-on-primary-container: #00612e;
+  --color-error: #ffb4ab;
+  --color-error-container: #93000a;
+  --color-on-error-container: #ffdad6;
+  --color-sell: #a00118;
+  --color-on-sell: #ffa8a3;
+  --color-tertiary: #b0c6ff;
+  --color-on-tertiary-container: #004eb5;
+
+  /* Alias layer: existing utility classes take on the terminal palette */
+  --color-zinc-950: #0e0e0e;
+  --color-zinc-900: #1c1b1b;
+  --color-zinc-800: #2a2a2a;
+  --color-zinc-700: #3b4a3d;
+  --color-zinc-600: #5c675c;
+  --color-zinc-500: #859585;
+  --color-zinc-400: #bacbb9;
+  --color-zinc-300: #cdd9cc;
+  --color-zinc-200: #dce4db;
+  --color-zinc-100: #e5e2e1;
+  --color-emerald-300: #62ff96;
+  --color-emerald-400: #75ff9e;
+  --color-emerald-500: #00e676;
+  --color-emerald-600: #00b558;
+  --color-rose-300: #ffdad6;
+  --color-rose-400: #ffb4ab;
+  --color-rose-500: #c4001d;
+  --color-rose-600: #a00118;
+  --color-sky-400: #b0c6ff;
+  --color-sky-500: #7fa3ff;
+  --color-violet-400: #b0c6ff;
+  --color-violet-500: #7fa3ff;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  font-family: var(--font-inter), system-ui, sans-serif;
+}
+
+/* Minimal custom scrollbar for high-density tables (from landing.html) */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+::-webkit-scrollbar-track {
+  background: #131313;
+}
+::-webkit-scrollbar-thumb {
+  background: #353534;
+  border-radius: 2px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #859585;
 }
 
 ::selection {
-  background: #10b98155;
+  background: #00e676;
+  color: #00612e;
+}
+
+/* Material Symbols sizing default */
+.material-symbols-outlined {
+  font-size: 20px;
+  line-height: 1;
+  vertical-align: middle;
 }
