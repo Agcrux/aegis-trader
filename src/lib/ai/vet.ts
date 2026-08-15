@@ -67,7 +67,7 @@ export async function vetCandidate(
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        model: "claude-haiku-4-5",
+        model: "claude-haiku-4-5-20251001",
         max_tokens: 500,
         system:
           "You are the risk-vetting and explanation layer of a small family PAPER-trading system (no real money). You receive one systematic trade candidate with its indicator values and must judge and explain it for non-traders. " +
