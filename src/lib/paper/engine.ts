@@ -1,5 +1,6 @@
 import { FX_WATCHLIST, STOCK_WATCHLIST } from "../config";
 import { fetchMany } from "../data/market";
+import { newsOutlets, relatedSymbols } from "../data/news";
 import { allSignals } from "../strategy/strategies";
 import { evaluateEntry, evaluateExit, type RiskContext } from "../risk";
 import { priceMap } from "./prices";
@@ -130,7 +131,16 @@ export async function runSandboxEngine(
     }
     sandbox = result.sandbox;
     placed.push(result.trade);
-    notes.push(`BOUGHT ${s.symbol} — ${s.reason}`);
+    const related = relatedSymbols(s.symbol, s.leg)
+      .map((r) => r.symbol)
+      .join(", ");
+    const outlets = newsOutlets(s.symbol, s.leg)
+      .slice(0, 4)
+      .map((o) => o.name)
+      .join(", ");
+    notes.push(
+      `BOUGHT ${s.symbol} — ${s.reason}${related ? ` Also watch: ${related}.` : ""} Check the news: ${outlets}.`
+    );
   }
 
   const finalValue = valueSandbox(sandbox, prices);

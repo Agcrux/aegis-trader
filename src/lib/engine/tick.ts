@@ -2,7 +2,8 @@ import { ensureSchema, getSql, newId, getState, setState } from "../db";
 import { fetchMany } from "../data/market";
 import { allSignals } from "../strategy/strategies";
 import { evaluateEntry, evaluateExit, drawdownCheck, type RiskContext } from "../risk";
-import { vetCandidate } from "../ai/vet";
+import { vetCandidate, outlookLine } from "../ai/vet";
+import { newsOutlets, relatedSymbols } from "../data/news";
 import { placeOrder } from "../brokers";
 import { writeJournal } from "../journal";
 import { notifyDiscord, COLORS } from "../discord";
@@ -292,26 +293,54 @@ export async function runEngineTick(trigger: string): Promise<TickReport> {
           openedAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         });
+        // Assemble the full "why": systematic reason + AI thesis + prediction + risks.
+        const outlook = outlookLine(vet);
+        const thesisLine = vet.thesis ? ` Why ${s.symbol}: ${vet.thesis}` : "";
         const aiLine =
-          vet.verdict === "APPROVE"
-            ? ` AI vet approved (confidence ${(vet.confidence * 100).toFixed(0)}%): ${vet.rationale}`
-            : ` ${vet.rationale}`;
+          vet.verdict === "APPROVE" && vet.enabled
+            ? ` AI vet approved (confidence ${(vet.confidence * 100).toFixed(0)}%).`
+            : vet.enabled
+              ? ` ${vet.rationale}`
+              : ` ${vet.rationale}`;
+        const riskLine = vet.risks ? ` Risks: ${vet.risks}` : "";
+        const outlookText = outlook ? ` ${outlook}` : "";
+
+        const outlets = newsOutlets(s.symbol, s.leg);
+        const related = relatedSymbols(s.symbol, s.leg);
+
         await writeJournal({
           accountId: account.id,
           kind: "TRADE",
           symbol: s.symbol,
           title: `BOUGHT ${s.symbol} — ${account.label}`,
-          what: `Bought ${verdict.qty.toFixed(4)} ${s.symbol} at $${fill.fillPrice.toFixed(4)} for $${cost.toFixed(2)} (${fill.broker}).`,
-          why: `${s.reason}${aiLine}`,
+          what: `Automatic paper buy: ${verdict.qty.toFixed(4)} ${s.symbol} at $${fill.fillPrice.toFixed(4)} for $${cost.toFixed(2)} (${fill.broker}).`,
+          why: `${s.reason}${thesisLine}${outlookText}${aiLine}${riskLine} Check the news before relying on this: ${outlets.map((o) => o.name).join(", ")}.`,
           data: {
             ...s.indicators,
             strategy: s.strategy,
             broker: fill.broker,
             sizedPct: Math.round((cost / Math.max(equity, 0.01)) * 100),
+            prediction: vet.outlook,
+            confidence: vet.confidence,
+            newsOutlets: outlets,
+            relatedSymbols: related,
             note: fill.note,
           },
           discord: true,
           accountLabel: account.label,
+          discordFields: [
+            ...(outlook ? [{ name: "Prediction", value: outlook }] : []),
+            {
+              name: "News",
+              value: outlets
+                .slice(0, 4)
+                .map((o) => `[${o.name}](${o.url})`)
+                .join(" · "),
+            },
+            ...(related.length
+              ? [{ name: "Also watch", value: related.map((r) => r.symbol).join(", ") }]
+              : []),
+          ],
         });
       }
     }

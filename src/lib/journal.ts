@@ -18,6 +18,8 @@ export interface JournalInput {
   data?: Record<string, unknown>;
   discord?: boolean;
   accountLabel?: string;
+  /** Extra fields appended to the Discord embed (e.g. Prediction, News, Related). */
+  discordFields?: Array<{ name: string; value: string }>;
 }
 
 const KIND_COLOR: Record<JournalKind, number> = {
@@ -38,11 +40,15 @@ export async function writeJournal(input: JournalInput): Promise<void> {
       ${input.data ? JSON.stringify(input.data) : null}::jsonb)`;
 
   if (input.discord) {
+    const fields = [
+      ...(input.accountLabel ? [{ name: "Account", value: input.accountLabel }] : []),
+      ...(input.discordFields ?? []),
+    ];
     await notifyDiscord({
       title: `${input.kind === "TRADE" ? "" : `[${input.kind}] `}${input.title}`,
       description: `**What:** ${input.what}\n**Why:** ${input.why}`,
       color: KIND_COLOR[input.kind],
-      fields: input.accountLabel ? [{ name: "Account", value: input.accountLabel }] : [],
+      fields,
     });
   }
 }

@@ -1,54 +1,105 @@
-import { LiveDot, Stat } from "@/components/ui";
+"use client";
+
+import { useEffect, useState } from "react";
 import { fmtMoney, fmtPct } from "@/lib/format";
+import type { LivePortfolio } from "@/app/api/portfolio/live/route";
 
 /**
- * The "Live Analytics" glass widget from the terminal design. Fed by the
- * real combined portfolio numbers computed server-side (not simulated).
+ * The "Live Analytics" glass widget from the terminal design.
+ * Seeded with server-computed values for first paint, then it polls
+ * /api/portfolio/live every 15s so equity and unrealized earnings track the
+ * market in real time — never a frozen number. A pulsing dot + "updated Ns
+ * ago" makes the liveness visible.
  */
-export default function LiveAnalytics({
-  dayPnl,
-  totalEquity,
-  totalReturnPct,
-  winRatePct,
-  openPositions,
-}: {
+
+interface Props {
   dayPnl: number;
   totalEquity: number;
   totalReturnPct: number;
   winRatePct: number | null;
   openPositions: number;
-}) {
+}
+
+export default function LiveAnalytics(initial: Props) {
+  const [data, setData] = useState<Props>(initial);
+  const [updatedAt, setUpdatedAt] = useState<number>(Date.now());
+  const [now, setNow] = useState<number>(Date.now());
+
+  useEffect(() => {
+    let alive = true;
+    async function load() {
+      try {
+        const res = await fetch("/api/portfolio/live", { cache: "no-store" });
+        if (!res.ok) return;
+        const p = (await res.json()) as LivePortfolio;
+        if (!alive) return;
+        setData({
+          dayPnl: p.totalOpenPnl,
+          totalEquity: p.totalEquity,
+          totalReturnPct: p.totalReturnPct,
+          winRatePct: p.winRatePct,
+          openPositions: p.openPositions,
+        });
+        setUpdatedAt(p.ts);
+      } catch {
+        /* keep last good values */
+      }
+    }
+    load();
+    const id = setInterval(load, 15000);
+    const tick = setInterval(() => setNow(Date.now()), 1000);
+    return () => {
+      alive = false;
+      clearInterval(id);
+      clearInterval(tick);
+    };
+  }, []);
+
+  const { dayPnl, totalEquity, totalReturnPct, winRatePct, openPositions } = data;
+  const secsAgo = Math.max(0, Math.round((now - updatedAt) / 1000));
+  const up = dayPnl >= 0;
+
   return (
     <section className="group relative flex flex-col overflow-hidden rounded-sm border border-outline-variant bg-surface p-4">
       <div className="pointer-events-none absolute -bottom-10 -right-10 h-32 w-32 rounded-full bg-primary/10 blur-3xl" />
       <h2 className="z-10 mb-2 flex items-center justify-between text-base font-semibold text-on-surface">
         Live Analytics
-        <LiveDot />
+        <span className="flex items-center gap-1.5 text-[10px] font-normal text-on-surface-variant">
+          <span className="relative flex h-2 w-2">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75" />
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
+          </span>
+          {secsAgo < 3 ? "live" : `${secsAgo}s ago`}
+        </span>
       </h2>
       <div className="z-10 flex flex-1 flex-col justify-center space-y-3">
         <div className="rounded-sm border border-outline-variant bg-surface-container p-3">
           <span className="mb-1 block text-[11px] uppercase tracking-[0.05em] text-on-surface-variant">
-            Open P&amp;L · unrealized (all accounts)
+            Live earnings · unrealized P&amp;L (all accounts)
           </span>
-          <div className={`font-mono text-3xl font-bold ${dayPnl >= 0 ? "text-primary" : "text-error"}`}>
+          <div className={`font-mono text-3xl font-bold ${up ? "text-primary" : "text-error"}`}>
             {dayPnl >= 0 ? "+" : ""}
             {fmtMoney(dayPnl).replace("$-", "-$")}
           </div>
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div className="rounded-sm border border-outline-variant bg-surface-container p-2">
-            <Stat
-              label="Total equity"
-              value={fmtMoney(totalEquity)}
-              sub={`${fmtPct(totalReturnPct)} since start`}
-            />
+            <div className="text-[11px] uppercase tracking-[0.05em] text-on-surface-variant">
+              Total equity
+            </div>
+            <div className="font-mono text-lg font-semibold text-on-surface">
+              {fmtMoney(totalEquity)}
+            </div>
+            <div className="text-xs text-on-surface-variant/80">{fmtPct(totalReturnPct)} since start</div>
           </div>
           <div className="rounded-sm border border-outline-variant bg-surface-container p-2">
-            <Stat
-              label="Win rate"
-              value={winRatePct === null ? "—" : `${winRatePct.toFixed(0)}%`}
-              sub={`${openPositions} open`}
-            />
+            <div className="text-[11px] uppercase tracking-[0.05em] text-on-surface-variant">
+              Win rate
+            </div>
+            <div className="font-mono text-lg font-semibold text-on-surface">
+              {winRatePct === null ? "—" : `${winRatePct.toFixed(0)}%`}
+            </div>
+            <div className="text-xs text-on-surface-variant/80">{openPositions} open</div>
           </div>
         </div>
       </div>

@@ -6,6 +6,88 @@ import { fmtDateTime } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
+type Outlet = { name: string; url: string };
+type Related = { symbol: string; name: string };
+
+/** Renders the structured extras (prediction, news links, related tickers) plus raw indicator pills. */
+function JournalExtras({ data }: { data: Record<string, unknown> }) {
+  const outlets = Array.isArray(data.newsOutlets) ? (data.newsOutlets as Outlet[]) : [];
+  const related = Array.isArray(data.relatedSymbols) ? (data.relatedSymbols as Related[]) : [];
+  const prediction = data.prediction as { direction?: string; horizon?: string } | undefined;
+  const skip = new Set(["newsOutlets", "relatedSymbols", "prediction", "note"]);
+  const pills = Object.entries(data).filter(
+    ([k, v]) => !skip.has(k) && (typeof v === "string" || typeof v === "number")
+  );
+
+  return (
+    <div className="mt-2.5 space-y-2">
+      {prediction?.direction ? (
+        <div className="text-xs text-on-surface-variant">
+          <span className="font-semibold text-on-surface-variant/70">Prediction: </span>
+          <span
+            className={
+              prediction.direction === "up"
+                ? "text-primary"
+                : prediction.direction === "down"
+                  ? "text-error"
+                  : "text-on-surface"
+            }
+          >
+            {prediction.direction === "up" ? "▲ " : prediction.direction === "down" ? "▼ " : ""}
+            {prediction.direction}
+          </span>{" "}
+          over {prediction.horizon ?? "days to weeks"}
+        </div>
+      ) : null}
+
+      {outlets.length ? (
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+          <span className="font-semibold text-on-surface-variant/70">News:</span>
+          {outlets.map((o) => (
+            <a
+              key={o.name}
+              href={o.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary underline decoration-primary/40 underline-offset-2 hover:decoration-primary"
+            >
+              {o.name}
+            </a>
+          ))}
+        </div>
+      ) : null}
+
+      {related.length ? (
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+          <span className="font-semibold text-on-surface-variant/70">Also watch:</span>
+          {related.map((r) => (
+            <span
+              key={r.symbol}
+              title={r.name}
+              className="rounded bg-surface-container-high px-1.5 py-0.5 font-mono text-[10px] text-on-surface-variant"
+            >
+              {r.symbol}
+            </span>
+          ))}
+        </div>
+      ) : null}
+
+      {pills.length ? (
+        <div className="flex flex-wrap gap-1.5">
+          {pills.slice(0, 8).map(([k, v]) => (
+            <span
+              key={k}
+              className="rounded bg-surface-container-high px-1.5 py-0.5 font-mono text-[10px] text-on-surface-variant"
+            >
+              {k}: {String(v)}
+            </span>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export default async function JournalPage({
   searchParams,
 }: {
@@ -78,20 +160,7 @@ export default async function JournalPage({
                 <span className="font-semibold text-zinc-500">Why: </span>
                 {j.why}
               </p>
-              {j.data ? (
-                <div className="mt-2 flex flex-wrap gap-1.5">
-                  {Object.entries(j.data)
-                    .slice(0, 8)
-                    .map(([k, v]) => (
-                      <span
-                        key={k}
-                        className="rounded bg-zinc-800 px-1.5 py-0.5 font-mono text-[10px] text-zinc-400"
-                      >
-                        {k}: {String(v)}
-                      </span>
-                    ))}
-                </div>
-              ) : null}
+              {j.data ? <JournalExtras data={j.data} /> : null}
             </Card>
           ))
         )}
