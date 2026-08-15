@@ -111,6 +111,24 @@ export type ManualOrderResult =
 const round2 = (n: number) => Math.round(n * 100) / 100;
 const round6 = (n: number) => Math.round(n * 1e6) / 1e6;
 
+/**
+ * Records an equity point so the chart / performance page reflect a manual
+ * funding or trade immediately, instead of waiting for the next engine run.
+ * Uses cost basis for holdings (cheap, no extra quote fetches); the dashboard
+ * headline still marks holdings to live prices.
+ */
+async function writeAccountSnapshot(accountId: string, cash: number): Promise<void> {
+  const sql = getSql();
+  const rows = (await sql`SELECT qty, avg_price FROM positions WHERE account_id = ${accountId}`) as Array<{
+    qty: string;
+    avg_price: string;
+  }>;
+  const invested = rows.reduce((s, r) => s + Number(r.qty) * Number(r.avg_price), 0);
+  const equity = round2(cash + invested);
+  await sql`INSERT INTO equity_snapshots (id, account_id, equity, cash)
+    VALUES (${newId("eq")}, ${accountId}, ${equity}, ${cash})`;
+}
+
 /** Places one manual paper order against the owner's own account. */
 export async function placeManualOrder(
   user: SessionUser,
@@ -186,6 +204,7 @@ export async function placeManualOrder(
       data: { source: "manual", price, notional, cashAfter: newCash },
       accountLabel: account.label,
     });
+    await writeAccountSnapshot(account.id, newCash);
     return { ok: true, note: `Bought ${qty} ${symbol} at $${price.toFixed(leg === "FX" ? 4 : 2)} on paper.`, state: (await getAccountTradeState(user, symbol))! };
   }
 
@@ -217,6 +236,7 @@ export async function placeManualOrder(
     data: { source: "manual", price, proceeds, realized, cashAfter: newCash },
     accountLabel: account.label,
   });
+  await writeAccountSnapshot(account.id, newCash);
   return { ok: true, note: `Sold ${sellQty} ${symbol} at $${price.toFixed(leg === "FX" ? 4 : 2)} — realized $${realized.toFixed(2)}.`, state: (await getAccountTradeState(user, symbol))! };
 }
 
@@ -241,5 +261,6 @@ export async function setPaperBalance(
     data: { balance: clamped },
     accountLabel: account.label,
   });
+  await writeAccountSnapshot(account.id, clamped);
   return { ok: true, balance: clamped };
 }

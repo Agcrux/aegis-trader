@@ -105,13 +105,18 @@ export default async function DashboardPage() {
           {await Promise.all(
             accounts.map(async (a) => {
               const series = await getEquitySeries(a.id);
-              const equity = series.length
-                ? series[series.length - 1].equity
-                : a.simCash;
+              // Live equity = current paper cash + live market value of this
+              // account's holdings. Never trust a stale engine snapshot here —
+              // it lags manual funding and hand trades (that was the $25 bug).
+              const acctInvested = enriched
+                .filter((p) => p.accountId === a.id)
+                .reduce((s, p) => s + (p.marketValue ?? 0), 0);
+              const equity = Math.round((a.simCash + acctInvested) * 100) / 100;
               const ret =
                 a.startingEquity > 0
                   ? ((equity - a.startingEquity) / a.startingEquity) * 100
                   : 0;
+              const chartPoints = [...series.map((s) => s.equity), equity];
               const paperDays = daysSince(a.paperStartedAt);
               const gatePct = Math.min(100, (paperDays / PAPER_GATE_DAYS) * 100);
               return (
@@ -131,7 +136,7 @@ export default async function DashboardPage() {
                       tone={ret >= 0 ? "up" : "down"}
                     />
                   </div>
-                  <EquityChart points={series.map((s) => s.equity)} height={70} />
+                  <EquityChart points={chartPoints} height={70} />
                   {a.frozen ? (
                     <p className="mt-2 rounded-md bg-rose-500/10 p-2 text-xs text-rose-300">
                       {a.frozenReason}
