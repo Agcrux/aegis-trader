@@ -16,11 +16,17 @@ promises the code keeps in [docs/SAFETY.md](docs/SAFETY.md).
 
 ## What's inside
 
-- **Next.js (React) on Vercel** — phone-first dashboard: accounts, positions, searchable
+- **ProTrader Terminal UI on Vercel** — charcoal + neon-green trading terminal (ported from
+  `design/landing-reference.html`): a public **live Markets** terminal (real-time index cards,
+  live chart, order calculator, market movers), plus phone-first accounts, positions, searchable
   journal, performance vs. buy-and-hold SPY, strategy lab, system health & controls
+- **Live, real-time market data** — keyless Yahoo Finance chart API (~30s cache) for quotes,
+  charts, and live position marks; Stooq daily data for indicators and backtests. No demo/sample
+  data — when no database is connected the app shows a "setup incomplete" state with empty real
+  data while market widgets stay live
 - **Engine as serverless ticks** — triggered by GitHub Actions cron (free) + Vercel cron
-  backup; Stooq's free daily data; internal simulator fills, with Alpaca **paper** / OANDA
-  **practice** adapters that activate when owners add their own keys
+  backup; internal simulator fills, with Alpaca **paper** / OANDA **practice** adapters that
+  activate when owners add their own keys
 - **Risk engine chokepoint** — per-account caps, daily loss stop, 30% drawdown freeze,
   dormant options/futures legs with equity unlock thresholds
 - **Neon Postgres** (free tier) — schema bootstraps itself; without it the site runs a

@@ -75,7 +75,8 @@ FX: EURUSD GBPUSD USDJPY AUDUSD. Crypto: explicitly out of scope.
 - **Engine** = serverless tick (`/api/engine/tick`), triggered by **GitHub Actions cron**
   (free, every 30 min in market hours + 2-hourly) with Vercel cron as daily backup. Secured by
   CRON_SECRET.
-- **Data**: Stooq daily CSV (free, keyless) for stocks + FX + 5-year backtests.
+- **Data**: LIVE/real-time quotes via Yahoo Finance chart API (free, keyless, ~30s cache) power the terminal UI (`/markets`, dashboard ticker, live position marks). Stooq daily CSV (free, keyless) feeds strategy indicators + 5-year backtests. No sampled/demo data anywhere.
+- **UI design**: ProTrader Terminal system ported from `design/landing-reference.html` — charcoal surfaces, neon-green primary, Inter + JetBrains Mono, Material Symbols icons, fixed left side-rail. `/markets` is a public live terminal (index cards, live SPY chart with 1D/1W/1M/YTD, order calculator, live movers). "Demo mode" removed: when no DB is connected the app shows a "setup incomplete" state with empty real data while market widgets stay live (`isSetupIncomplete()` in config.ts).
 - **Brokers**: internal simulator by default (instant fills + slippage haircut); Alpaca
   **paper** and OANDA **practice** adapters activate when owners add their own keys. Live
   endpoints intentionally absent in v1.
