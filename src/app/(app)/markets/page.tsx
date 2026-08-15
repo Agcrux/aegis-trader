@@ -15,7 +15,7 @@ export const dynamic = "force-dynamic";
  */
 export default async function MarketsPage() {
   const session = await getSession();
-  const isTester = session?.role === "TESTER";
+  const role = session?.role ?? null;
 
   return (
     <div className="space-y-3">
@@ -33,7 +33,7 @@ export default async function MarketsPage() {
           <LiveChart symbol="SPY" />
         </div>
         <div className="lg:col-span-4">
-          <SymbolTradePanel isTester={isTester} />
+          <SymbolTradePanel role={role} />
         </div>
       </div>
 

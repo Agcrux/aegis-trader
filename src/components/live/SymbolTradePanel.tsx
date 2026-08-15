@@ -1,41 +1,92 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { LiveQuote } from "@/lib/data/live";
 import type { SandboxView } from "@/lib/paper/view";
+import type { AccountTradeState } from "@/lib/account/paperTrade";
 import { SYMBOL_NAMES, STOCK_WATCHLIST, FX_WATCHLIST, legForSymbol } from "@/lib/config";
 import { MSym } from "@/components/ui";
 
 /**
- * Live-priced order panel. For owners it stays what it always was — a
- * calculator, since this build has no live execution path. For a tester session
- * the buttons place real paper orders against their cookie sandbox: fills come
- * from a server-side quote, so no money and no broker are involved.
+ * Live-priced order panel. Behaviour depends on who is signed in:
+ *  - OWNER  → places real paper orders against their own database account
+ *             (journaled as "manual"), and can set their paper balance.
+ *  - TESTER → places paper orders against their browser-cookie sandbox.
+ *  - guest  → a read-only calculator with a prompt to sign in.
+ * No broker is contacted and no real money exists in any path.
  */
+
+type Role = "OWNER" | "TESTER" | null;
+
+interface NormHolding {
+  symbol: string;
+  qty: number;
+  avgPrice: number;
+  potentialEarnings: number;
+  potentialPct: number;
+}
+interface NormState {
+  cash: number;
+  holding: NormHolding | null;
+}
 
 const input =
   "w-full rounded-sm border border-outline-variant bg-surface-container px-3 py-2 font-mono text-[13px] text-on-surface focus:border-primary focus:outline-none";
 
+function normalizeSandbox(view: SandboxView, symbol: string): NormState {
+  const h = view.valuation.holdings.find((x) => x.symbol === symbol);
+  return {
+    cash: view.valuation.cash,
+    holding: h
+      ? {
+          symbol: h.symbol,
+          qty: h.qty,
+          avgPrice: h.avgPrice,
+          potentialEarnings: h.potentialEarnings,
+          potentialPct: h.potentialPct,
+        }
+      : null,
+  };
+}
+function normalizeAccount(state: AccountTradeState): NormState {
+  return {
+    cash: state.cash,
+    holding: state.holding
+      ? {
+          symbol: state.holding.symbol,
+          qty: state.holding.qty,
+          avgPrice: state.holding.avgPrice,
+          potentialEarnings: state.holding.potentialEarnings,
+          potentialPct: state.holding.potentialPct,
+        }
+      : null,
+  };
+}
+
 export default function SymbolTradePanel({
   symbol: fixedSymbol,
-  isTester,
+  role,
 }: {
   symbol?: string;
-  isTester: boolean;
+  role: Role;
 }) {
   const router = useRouter();
   const [picked, setPicked] = useState("SPY");
   const [mode, setMode] = useState<"shares" | "dollars">("dollars");
   const [amount, setAmount] = useState(1000);
   const [quoted, setQuoted] = useState<LiveQuote | null>(null);
-  const [sandbox, setSandbox] = useState<SandboxView | null>(null);
-  const [busy, setBusy] = useState<"BUY" | "SELL" | null>(null);
+  const [state, setState] = useState<NormState | null>(null);
+  const [busy, setBusy] = useState<"BUY" | "SELL" | "FUNDS" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
+  const [fundsInput, setFundsInput] = useState(1000000);
 
   const symbol = fixedSymbol ?? picked;
+  const canTrade = role === "OWNER" || role === "TESTER";
+  const stateUrl = role === "OWNER" ? "/api/account/order" : "/api/paper/state";
+  const orderUrl = role === "OWNER" ? "/api/account/order" : "/api/paper/order";
 
   useEffect(() => {
     let alive = true;
@@ -57,23 +108,22 @@ export default function SymbolTradePanel({
     };
   }, [symbol]);
 
+  const loadState = useCallback(async () => {
+    if (!canTrade) return;
+    try {
+      const res = await fetch(`${stateUrl}?symbol=${symbol}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      if (role === "OWNER") setState(normalizeAccount(data as AccountTradeState));
+      else setState(normalizeSandbox(data as SandboxView, symbol));
+    } catch {
+      /* keep last */
+    }
+  }, [canTrade, role, stateUrl, symbol]);
+
   useEffect(() => {
-    if (!isTester) return;
-    let alive = true;
-    (async () => {
-      try {
-        const res = await fetch(`/api/paper/state?symbol=${symbol}`);
-        if (!res.ok) return;
-        const data = (await res.json()) as SandboxView;
-        if (alive) setSandbox(data);
-      } catch {
-        /* keep last */
-      }
-    })();
-    return () => {
-      alive = false;
-    };
-  }, [isTester, symbol]);
+    void loadState();
+  }, [loadState]);
 
   // Never show one symbol's price next to another's ticker.
   const quote = quoted?.symbol === symbol ? quoted : null;
@@ -82,15 +132,15 @@ export default function SymbolTradePanel({
   const price = quote?.price ?? 0;
   const qty = mode === "shares" ? amount : price > 0 ? amount / price : 0;
   const estValue = mode === "shares" ? amount * price : amount;
-  const holding = sandbox?.valuation.holdings.find((h) => h.symbol === symbol);
-  const cash = sandbox?.valuation.cash ?? 0;
+  const holding = state?.holding && state.holding.symbol === symbol ? state.holding : null;
+  const cash = state?.cash ?? 0;
 
   async function place(side: "BUY" | "SELL", all = false) {
     setBusy(side);
     setError(null);
     setNote(null);
     try {
-      const res = await fetch("/api/paper/order", {
+      const res = await fetch(orderUrl, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
@@ -100,16 +150,47 @@ export default function SymbolTradePanel({
           ...(all ? {} : mode === "shares" ? { qty: amount } : { notional: amount }),
         }),
       });
-      const data = (await res.json().catch(() => ({}))) as SandboxView & {
+      const data = (await res.json().catch(() => ({}))) as {
         error?: string;
         note?: string;
+        state?: AccountTradeState;
+        valuation?: SandboxView["valuation"];
+        trades?: SandboxView["trades"];
+        marks?: SandboxView["marks"];
       };
       if (!res.ok) {
         setError(data.error ?? `Order failed (${res.status})`);
         return;
       }
       setNote(data.note ?? "Filled on paper.");
-      if (data.valuation) setSandbox({ valuation: data.valuation, trades: data.trades, marks: data.marks });
+      if (role === "OWNER" && data.state) setState(normalizeAccount(data.state));
+      else if (data.valuation)
+        setState(normalizeSandbox({ valuation: data.valuation, trades: data.trades!, marks: data.marks! }, symbol));
+      router.refresh();
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function setFunds(value: number) {
+    setBusy("FUNDS");
+    setError(null);
+    setNote(null);
+    try {
+      const res = await fetch("/api/account/funds", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ balance: value }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { error?: string; balance?: number };
+      if (!res.ok) {
+        setError(data.error ?? `Failed (${res.status})`);
+        return;
+      }
+      setNote(`Paper balance set to $${(data.balance ?? value).toLocaleString("en-US")}.`);
+      await loadState();
       router.refresh();
     } catch (err) {
       setError((err as Error).message);
@@ -120,19 +201,59 @@ export default function SymbolTradePanel({
 
   const btn =
     "flex-1 rounded-sm px-3 py-2 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50";
+  const title = role === "OWNER" ? "Manual paper order" : role === "TESTER" ? "Paper order" : "Order calculator";
 
   return (
     <section className="flex flex-col rounded-sm border border-outline-variant bg-surface p-4">
       <div className="mb-4 flex items-baseline justify-between">
-        <h2 className="text-base font-semibold text-on-surface">
-          {isTester ? "Paper order" : "Order calculator"}
-        </h2>
-        {isTester ? (
+        <h2 className="text-base font-semibold text-on-surface">{title}</h2>
+        {canTrade ? (
           <span className="rounded-xs bg-tertiary/15 px-1.5 py-0.5 font-mono text-[10px] font-bold text-tertiary">
-            PLAY MONEY
+            {role === "OWNER" ? "PAPER" : "PLAY MONEY"}
           </span>
         ) : null}
       </div>
+
+      {/* Owner-only: set paper balance (play money for testing) */}
+      {role === "OWNER" ? (
+        <div className="mb-4 rounded-sm border border-outline-variant bg-surface-container-low p-3">
+          <div className="mb-1.5 flex items-center justify-between">
+            <span className="text-[11px] uppercase tracking-[0.05em] text-on-surface-variant">
+              Paper cash
+            </span>
+            <span className="font-mono text-[13px] text-primary">
+              {cash.toLocaleString("en-US", { style: "currency", currency: "USD" })}
+            </span>
+          </div>
+          <div className="flex gap-2">
+            <input
+              type="number"
+              min="0"
+              step="1000"
+              value={fundsInput}
+              onChange={(e) => setFundsInput(Math.max(0, Number(e.target.value)))}
+              className={`${input} text-right`}
+            />
+            <button
+              className="shrink-0 rounded-sm border border-outline-variant px-2.5 py-2 text-[12px] text-on-surface transition-colors hover:bg-surface-container-high disabled:opacity-50"
+              disabled={busy !== null}
+              onClick={() => setFunds(fundsInput)}
+            >
+              Set
+            </button>
+            <button
+              className="shrink-0 rounded-sm bg-primary/15 px-2.5 py-2 text-[12px] font-semibold text-primary transition-colors hover:bg-primary/25 disabled:opacity-50"
+              disabled={busy !== null}
+              onClick={() => {
+                setFundsInput(1000000);
+                void setFunds(1000000);
+              }}
+            >
+              $1,000,000
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       <div className="space-y-4">
         {fixedSymbol ? null : (
@@ -198,16 +319,16 @@ export default function SymbolTradePanel({
             }
             mono
           />
-          {isTester ? (
+          {canTrade ? (
             <Row
-              label="Sandbox cash"
+              label={role === "OWNER" ? "Account cash" : "Sandbox cash"}
               value={cash.toLocaleString("en-US", { style: "currency", currency: "USD" })}
               mono
             />
           ) : null}
         </div>
 
-        {isTester && holding ? (
+        {canTrade && holding ? (
           <div className="rounded-sm border border-outline-variant bg-surface-container-low p-2.5 text-[11px]">
             <div className="text-on-surface">
               You hold <span className="font-mono">{holding.qty}</span> {symbol} @{" "}
@@ -218,13 +339,14 @@ export default function SymbolTradePanel({
                 holding.potentialEarnings >= 0 ? "text-primary" : "text-error"
               }`}
             >
-              Potential earnings {holding.potentialEarnings >= 0 ? "+" : "−"}$
+              {role === "OWNER" ? "Unrealized" : "Potential earnings"}{" "}
+              {holding.potentialEarnings >= 0 ? "+" : "−"}$
               {Math.abs(holding.potentialEarnings).toFixed(2)} ({holding.potentialPct.toFixed(2)}%)
             </div>
           </div>
         ) : null}
 
-        {isTester ? (
+        {canTrade ? (
           <div className="space-y-2">
             <div className="flex gap-2">
               <button
@@ -258,20 +380,25 @@ export default function SymbolTradePanel({
       </div>
 
       <div className="mt-4 flex items-start gap-2 rounded-sm border border-outline-variant bg-surface-container-low p-3 text-[11px] leading-relaxed text-on-surface-variant">
-        <MSym name={isTester ? "science" : "lock"} className="mt-px text-sm text-primary" />
-        {isTester ? (
+        <MSym name={canTrade ? "science" : "lock"} className="mt-px text-sm text-primary" />
+        {role === "OWNER" ? (
+          <span>
+            Paper only: hand trades fill at a live server-side quote minus a realistic slippage cost,
+            update your account, and appear in the journal tagged <span className="font-mono">manual</span>.
+            The automated engine keeps trading alongside you. No broker, no real money.
+          </span>
+        ) : role === "TESTER" ? (
           <span>
             Paper only: no money moves and no broker is contacted. Fills use a live server-side quote
             minus a realistic slippage cost, and your positions live in this browser.
           </span>
         ) : (
           <span>
-            Manual orders aren&apos;t placed from here. The automated engine executes on paper inside
-            your risk caps, keeping the one-chokepoint safety rule intact.{" "}
+            Sign in to trade on paper.{" "}
             <Link href="/login" className="text-primary hover:underline">
-              Sign in as a tester
+              Owners
             </Link>{" "}
-            to trade a play-money sandbox by hand.
+            trade their own account by hand; testers get a play-money sandbox.
           </span>
         )}
       </div>

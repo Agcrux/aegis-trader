@@ -10,6 +10,7 @@ import { getLiveQuote } from "@/lib/data/live";
 import { fmtMoney, fmtPct } from "@/lib/format";
 import { readSandboxOrFresh } from "@/lib/paper/cookie";
 import { buildSandboxView } from "@/lib/paper/view";
+import { getAccountTradeState } from "@/lib/account/paperTrade";
 
 export const dynamic = "force-dynamic";
 
@@ -37,12 +38,15 @@ export default async function SymbolPage({ params }: { params: Promise<{ symbol:
   if (!leg) notFound();
 
   const [session, quote] = await Promise.all([getSession(), getLiveQuote(symbol, leg)]);
-  const isTester = session?.role === "TESTER";
-  const holding = isTester
-    ? (await buildSandboxView(await readSandboxOrFresh(), [symbol])).valuation.holdings.find(
-        (h) => h.symbol === symbol
-      )
-    : undefined;
+  const role = session?.role ?? null;
+  const holding =
+    role === "TESTER"
+      ? (await buildSandboxView(await readSandboxOrFresh(), [symbol])).valuation.holdings.find(
+          (h) => h.symbol === symbol
+        )
+      : role === "OWNER"
+        ? (await getAccountTradeState(session!, symbol))?.holding ?? undefined
+        : undefined;
 
   const digits = leg === "FX" ? 4 : 2;
   const fmtPrice = (n: number) => n.toLocaleString("en-US", { maximumFractionDigits: digits });
@@ -117,7 +121,7 @@ export default async function SymbolPage({ params }: { params: Promise<{ symbol:
             </Card>
           ) : null}
 
-          <SymbolTradePanel symbol={symbol} isTester={isTester} />
+          <SymbolTradePanel symbol={symbol} role={role} />
         </div>
       </div>
 
