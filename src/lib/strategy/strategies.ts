@@ -17,7 +17,7 @@ import { atr, momentum, round2, round4, rsi, sma } from "./indicators";
  * as software.
  */
 
-const TOP_N = 5;
+// Paper phase: momentum holds EVERY uptrending name, with no fixed top-N cap.
 
 /** Strategy 1 — trend/momentum rotation on the stock watchlist. */
 export function trendMomentumSignals(
@@ -40,10 +40,9 @@ export function trendMomentumSignals(
     });
   }
   ranked.sort((a, b) => b.mom - a.mom);
-  // Loosened for paper activity: top-N momentum names above their 50-day MA.
-  // (The stricter "200-day average must be rising" filter was dropped.)
-  const topSymbols = ranked.slice(0, TOP_N).filter((r) => r.aboveSma50);
-  const topHalf = new Set(ranked.slice(0, Math.ceil(ranked.length / 2)).map((r) => r.symbol));
+  // Paper phase: buy EVERY name in an uptrend (above its 50-day MA), not a
+  // top-N slice — the owner asked for as many buys as the rules can find.
+  const topSymbols = ranked.filter((r) => r.aboveSma50);
 
   const heldTrend = held.filter((p) => p.leg === "STOCK");
   for (const p of heldTrend) {
@@ -51,7 +50,10 @@ export function trendMomentumSignals(
     if (!b) continue;
     const s50 = sma(b, 50);
     const price = b[b.length - 1].close;
-    if (s50 !== null && (price < s50 || !topHalf.has(p.symbol))) {
+    // Exit only when the uptrend actually breaks (price below the 50-day MA).
+    // The old "fell out of the top half" rotation is dropped — when you hold
+    // many names at once, rotating on rank just churns.
+    if (s50 !== null && price < s50) {
       out.push({
         strategy: "trend_momentum",
         leg: "STOCK",
@@ -59,11 +61,8 @@ export function trendMomentumSignals(
         action: "EXIT",
         side: "SELL",
         strength: 1,
-        reason:
-          price < s50
-            ? `Price ${round2(price)} closed below its 50-day average ${round2(s50)} — the uptrend that justified holding is broken.`
-            : `${p.symbol} fell out of the top half of the momentum ranking — rotation rules say give the slot to a stronger name.`,
-        indicators: { price: round2(price), sma50: s50 ? round2(s50) : "n/a" },
+        reason: `Price ${round2(price)} closed below its 50-day average ${round2(s50)} — the uptrend that justified holding is broken.`,
+        indicators: { price: round2(price), sma50: round2(s50) },
       });
     }
   }
@@ -80,7 +79,7 @@ export function trendMomentumSignals(
       action: "ENTER",
       side: "BUY",
       strength: Math.min(1, Math.max(0.2, r.mom / 30)),
-      reason: `${r.symbol} ranks in the top ${TOP_N} of ${ranked.length} watched symbols by 3-month gain (+${round2(r.mom)}%) and trades above its 50-day average — an established short-term uptrend.`,
+      reason: `${r.symbol} is in an uptrend — up +${round2(r.mom)}% over 3 months and trading above its 50-day average.`,
       indicators: { price: round2(price), momentum63d: round2(r.mom) },
     });
   }
@@ -186,9 +185,19 @@ export function allSignals(
   fxBars: Map<string, Bar[]>,
   held: Position[]
 ): SignalCandidate[] {
-  return [
+  const signals = [
     ...trendMomentumSignals(stockBars, held),
     ...meanReversionSignals(stockBars, held),
     ...fxTrendSignals(fxBars, held),
   ];
+  // Dedup ENTER candidates so one symbol isn't bought twice in a single tick
+  // (momentum and dip-buying can both flag the same name). Keep every EXIT.
+  const seen = new Set<string>();
+  return signals.filter((s) => {
+    if (s.action !== "ENTER") return true;
+    const key = `${s.leg}:${s.symbol}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }

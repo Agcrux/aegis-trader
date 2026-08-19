@@ -26,20 +26,29 @@ export const MAX_OWNERS = 2;
  */
 export const DEFAULT_CAPS: Caps = {
   maxPositionPct: 15, // one position may hold at most 15% of equity (smaller → room for more names)
-  maxPositions: 8,
+  maxPositions: 25,
   dailyLossPct: 5, // stop trading for the day at -5%
   freezeDrawdownPct: 30, // master circuit breaker agreed in the vision (default ceiling)
-  maxTradesPerDay: 10,
+  maxTradesPerDay: 50,
 };
 
 /** Hard ceilings — server rejects caps looser than these regardless of UI input. */
 export const CAP_CEILINGS: Caps = {
   maxPositionPct: 50,
-  maxPositions: 10,
+  maxPositions: 30,
   dailyLossPct: 10,
   freezeDrawdownPct: 30,
-  maxTradesPerDay: 12,
+  maxTradesPerDay: 60,
 };
+
+/**
+ * Paper phase: cap each position at this % of equity so the engine can hold
+ * MANY names at once (the per-account count caps are not enforced during the
+ * paper phase — the owner asked it to buy as many as the rules find). With ~20
+ * tradable symbols and ~6% each, the whole watchlist fits inside available cash.
+ * Tighten / re-enable count caps before real money (VISION Stage 3).
+ */
+export const DIVERSIFY_MAX_PCT = 6;
 
 /** Liquid, fractional-friendly stock/ETF watchlist scanned by the engine. */
 export const STOCK_WATCHLIST = [

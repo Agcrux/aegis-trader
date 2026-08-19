@@ -1,6 +1,7 @@
 import type { Account, Position, SignalCandidate } from "./types";
 import {
   CAP_CEILINGS,
+  DIVERSIFY_MAX_PCT,
   FUTURES_UNLOCK_EQUITY,
   MIN_ORDER_NOTIONAL,
   OPTIONS_UNLOCK_EQUITY,
@@ -59,13 +60,19 @@ export function evaluateEntry(c: RiskContext, s: SignalCandidate): RiskVerdict {
     blocks.push(
       `Daily loss cap hit (${c.dayPnlPct.toFixed(2)}% ≤ -${caps.dailyLossPct}%) — no new trades until tomorrow.`
     );
-  if (c.tradesToday >= caps.maxTradesPerDay)
-    blocks.push(`Max trades per day reached (${caps.maxTradesPerDay}).`);
-  if (c.openPositions.length >= caps.maxPositions)
-    blocks.push(`Max open positions reached (${caps.maxPositions}).`);
 
-  // Position sizing: strength-scaled, capped by maxPositionPct and by available cash.
-  const capNotional = (caps.maxPositionPct / 100) * equity;
+  // PAPER PHASE: the per-account COUNT limits (maxPositions, maxTradesPerDay)
+  // are intentionally NOT enforced — the owner asked the engine to buy as many
+  // names as it finds signals for. Small position sizing (below) lets the
+  // account hold many at once, and the value-based safeties still apply: the
+  // daily-loss stop above and the drawdown-freeze circuit breaker. Re-enable
+  // the count caps before real money (VISION Stage 3).
+  void c.tradesToday;
+
+  // Position sizing: strength-scaled, kept small (the lower of the owner's
+  // per-position cap and DIVERSIFY_MAX_PCT) so the account can spread across
+  // many names, and bounded by available cash.
+  const capNotional = (Math.min(caps.maxPositionPct, DIVERSIFY_MAX_PCT) / 100) * equity;
   const target = Math.min(capNotional * Math.max(0.5, Math.min(1, s.strength)), c.cash);
   const notionalUsd = Math.floor(target * 100) / 100;
 
